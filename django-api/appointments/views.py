@@ -166,7 +166,6 @@ class AppointmentViewSet(viewsets.ModelViewSet):
 
         # Only patients can CANCEL their own appointments
         if new_status == 'CANCELLED' and not user.is_staff:
-            print("The user here is", user)
             if not hasattr(user, 'patientprofile') or appointment.patient != user.patientprofile:
                 self.permission_denied(
                     self.request,
@@ -334,8 +333,7 @@ class AppointmentReminderViewSet(viewsets.ModelViewSet):
         """
         Create a reminder and check user permissions.
         """
-        appointment_id = serializer.validated_data.get('apppointment')
-        print(f"The appointment id here is", appointment_id)
+        appointment_id = serializer.validated_data.get('appointment').id
         appointment = get_object_or_404(Appointment, id=appointment_id)
 
         user = self.request.user
@@ -361,8 +359,8 @@ class AppointmentReminderViewSet(viewsets.ModelViewSet):
 
         # Only admin/staff, the doctor, or the patient can update reminders
         if not user.is_staff and not (
-            (hasattr(user, 'doctor') and reminder.appointment.doctor == user.doctor) or
-            (hasattr(user, 'patient') and reminder.appointment.patient == user.patient)
+            (hasattr(user, 'doctorprofile') and reminder.appointment.doctor == user.doctorprofile) or
+            (hasattr(user, 'patientprofile') and reminder.appointment.patient == user.patientprofile)
         ):
             self.permission_denied(
                 self.request,
@@ -386,8 +384,8 @@ class AppointmentReminderViewSet(viewsets.ModelViewSet):
 
         # Only admin/staff, the doctor, or the patient can delete reminders
         if not user.is_staff and not (
-            (hasattr(user, 'doctor') and instance.appointment.doctor == user.doctor) or
-            (hasattr(user, 'patient') and instance.appointment.patient == user.patient)
+            (hasattr(user, 'doctorprofile') and instance.appointment.doctor == user.doctorprofile) or
+            (hasattr(user, 'patientprofile') and instance.appointment.patient == user.patientprofile)
         ):
             self.permission_denied(
                 self.request,

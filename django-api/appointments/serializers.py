@@ -20,7 +20,7 @@ class AppointmentReminderSerializer(serializers.ModelSerializer):
     """
     class Meta:
         model = AppointmentReminder
-        fields = ['id', 'reminder_type', 'scheduled_time', 'message', 'sent', 'sent_time']
+        fields = ['id', 'reminder_type', 'scheduled_time', 'message', 'sent', 'sent_time', 'appointment']
         read_only_fields = ['id', 'sent', 'sent_time']
 
 
