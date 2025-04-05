@@ -158,7 +158,7 @@ class AppointmentViewSet(viewsets.ModelViewSet):
 
         # Only doctors/staff can mark as CHECKED_IN, IN_PROGRESS, COMPLETED, or NO_SHOW
         if new_status in ['CHECKED_IN', 'IN_PROGRESS', 'COMPLETED', 'NO_SHOW']:
-            if not user.is_staff and not hasattr(user, 'doctor'):
+            if not user.is_staff and not hasattr(user, 'doctorprofile'):
                 self.permission_denied(
                     self.request,
                     message="You do not have permission to update to this status."
@@ -166,7 +166,8 @@ class AppointmentViewSet(viewsets.ModelViewSet):
 
         # Only patients can CANCEL their own appointments
         if new_status == 'CANCELLED' and not user.is_staff:
-            if not hasattr(user, 'patient') or appointment.patient != user.patient:
+            print("The user here is", user)
+            if not hasattr(user, 'patientprofile') or appointment.patient != user.patientprofile:
                 self.permission_denied(
                     self.request,
                     message="You can only cancel your own appointments."
@@ -319,12 +320,12 @@ class AppointmentReminderViewSet(viewsets.ModelViewSet):
             return AppointmentReminder.objects.all()
 
         # Doctors can see reminders for their appointments
-        if hasattr(user, 'doctor'):
-            return AppointmentReminder.objects.filter(appointment__doctor=user.doctor)
+        if hasattr(user, 'doctorprofile'):
+            return AppointmentReminder.objects.filter(appointment__doctor=user.doctorprofile)
 
         # Patients can see reminders for their appointments
-        if hasattr(user, 'patient'):
-            return AppointmentReminder.objects.filter(appointment__patient=user.patient)
+        if hasattr(user, 'patientprofile'):
+            return AppointmentReminder.objects.filter(appointment__patient=user.patientprofile)
 
         # Other users can't see any reminders
         return AppointmentReminder.objects.none()
@@ -333,15 +334,16 @@ class AppointmentReminderViewSet(viewsets.ModelViewSet):
         """
         Create a reminder and check user permissions.
         """
-        appointment_id = serializer.validated_data.get('appointment').id
+        appointment_id = serializer.validated_data.get('apppointment')
+        print(f"The appointment id here is", appointment_id)
         appointment = get_object_or_404(Appointment, id=appointment_id)
 
         user = self.request.user
 
         # Only admin/staff, the doctor, or the patient can add reminders
         if not user.is_staff and not (
-            (hasattr(user, 'doctor') and appointment.doctor == user.doctor) or
-            (hasattr(user, 'patient') and appointment.patient == user.patient)
+            (hasattr(user, 'doctorprofile') and appointment.doctor == user.doctorprofile) or
+            (hasattr(user, 'patientprofile') and appointment.patient == user.patientprofile)
         ):
             self.permission_denied(
                 self.request,

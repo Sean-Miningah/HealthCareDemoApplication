@@ -159,11 +159,11 @@ class AppointmentUpdateSerializer(AppointmentSerializer):
             raise serializers.ValidationError("Cannot change to a previous status.")
 
         # Only doctors/staff can mark as completed
-        if value == 'COMPLETED' and not (hasattr(user, 'doctor') or user.is_staff):
+        if value == 'COMPLETED' and not (hasattr(user, 'doctorprofile') or user.is_staff):
             raise serializers.ValidationError("Only doctors or staff can mark appointments as completed.")
 
         # Only allow patients to cancel their own appointments
-        if value == 'CANCELLED' and not (hasattr(user, 'patient') or user.is_staff):
+        if value == 'CANCELLED' and not (hasattr(user, 'patientprofile') or user.is_staff):
             if not hasattr(user, 'patient') or (instance and instance.patient.user != user):
                 raise serializers.ValidationError("Only patients can cancel their own appointments.")
 
