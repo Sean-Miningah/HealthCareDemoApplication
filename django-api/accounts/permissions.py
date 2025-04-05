@@ -12,11 +12,16 @@ class IsDoctor(permissions.BasePermission):
     Permission to only allow users with doctor role.
     """
     def has_permission(self, request, view):
-        return request.user and request.user.is_authenticated and hasattr(request.user, 'doctor')
+        # Primary check should be on the user's role
+        is_doctor_role = request.user.is_authenticated and request.user.role == 'DOCTOR'
+
+        print(f"User: {request.user}, Is Doctor Role: {is_doctor_role}")
+
+        return is_doctor_role
 
 class IsPatient(permissions.BasePermission):
     """
     Permission to only allow users with patient role.
     """
     def has_permission(self, request, view):
-        return request.user and request.user.is_authenticated and hasattr(request.user, 'patient')
+        return request.user and request.user.is_authenticated and request.user.role == 'PATIENT'

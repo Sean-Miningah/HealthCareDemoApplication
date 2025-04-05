@@ -37,7 +37,7 @@ class UserManager(BaseUserManager):
         return self._create_user(email, password, **extra_fields)
 
 
-class User(AbstractUser, TimeStampedModel):
+class User(TimeStampedModel, AbstractUser):
     """
     Custom User model that uses email as the unique identifier
     instead of username.
@@ -57,14 +57,19 @@ class User(AbstractUser, TimeStampedModel):
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []  # Email & Password are required by default
 
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
     objects = UserManager()
 
     def __str__(self):
         return self.email
 
     def save(self, *args, **kwargs):
-        # If this is a new user (no pk) and role is ADMIN, make is_staff True
-        if not self.pk and self.role == 'ADMIN':
+        """
+        Check if new User set to Admin make set staff to true
+        """
+        if not self.created_at and self.role == 'ADMIN':
             self.is_staff = True
         super().save(*args, **kwargs)
 

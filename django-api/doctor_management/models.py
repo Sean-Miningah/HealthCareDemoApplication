@@ -47,7 +47,7 @@ class DoctorAvailability(TimeStampedModel):
         (6, 'Sunday'),
     )
 
-    doctor = models.ForeignKey(DoctorProfile, on_delete=models.CASCADE, related_name='availability_doctors')
+    doctor = models.ForeignKey(DoctorProfile, on_delete=models.CASCADE, related_name='availabilities')
     day_of_week = models.IntegerField(choices=DAYS_OF_WEEK)
     start_time = models.TimeField()
     end_time = models.TimeField()
