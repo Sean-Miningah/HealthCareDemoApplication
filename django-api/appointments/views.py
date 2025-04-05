@@ -94,7 +94,6 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         if status_param:
             queryset = queryset.filter(status=status_param)
 
-        # Date range filters
         start_date = self.request.query_params.get('start_date')
         if start_date:
             queryset = queryset.filter(start_datetime__date__gte=start_date)
@@ -103,7 +102,6 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         if end_date:
             queryset = queryset.filter(start_datetime__date__lte=end_date)
 
-        # Upcoming appointments
         upcoming = self.request.query_params.get('upcoming')
         if upcoming and upcoming.lower() == 'true':
             queryset = queryset.filter(
@@ -127,7 +125,6 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         """
         user = self.request.user
 
-        # Prepare additional data to pass to serializer's save method
         additional_data = {}
 
         # Set the patient to the current user if not provided and user is a patient
@@ -143,7 +140,6 @@ class AppointmentViewSet(viewsets.ModelViewSet):
                     message="You can only make appointments for yourself."
                 )
 
-        # Save with any additional data
         serializer.save(**additional_data)
 
     def perform_update(self, serializer):
