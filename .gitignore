@@ -172,3 +172,17 @@ cython_debug/
 #.idea/
 
 # End of https://www.toptal.com/developers/gitignore/api/django
+
+medical_images/
+
+
+node_modules
+.DS_Store
+dist
+dist-ssr
+*.local
+.eslintcache
+coverage
+.nyc_output
+.stylelintcache
+cypress/videos
