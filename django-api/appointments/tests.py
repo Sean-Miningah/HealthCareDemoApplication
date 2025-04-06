@@ -7,7 +7,7 @@ from appointments.models import Appointment, AppointmentType, AppointmentReminde
 from patient_management.models import PatientProfile
 from doctor_management.models import DoctorProfile, DoctorAvailability, DoctorTimeOff
 from django.utils import timezone
-from datetime import timedelta
+from datetime import timedelta, time
 
 User = get_user_model()
 
@@ -96,8 +96,8 @@ class AppointmentViewSetTests(APITestCase):
             DoctorAvailability.objects.create(
                 doctor=self.doctor_profile,
                 day_of_week=day,
-                start_time=timezone.now().time(),
-                end_time=(timezone.now() + timedelta(hours=8)).time()
+                start_time=time(1, 0, 0),
+                end_time=time(23, 0, 0)
             )
 
         # Now create the appointment
@@ -273,8 +273,8 @@ class AppointmentReminderViewSetTests(APITestCase):
             DoctorAvailability.objects.create(
                 doctor=self.doctor_profile,
                 day_of_week=day,
-                start_time=timezone.now().time(),
-                end_time=(timezone.now() + timedelta(hours=8)).time()
+                start_time=time(1, 0, 0),
+                end_time=time(23, 0, 0)
             )
 
 

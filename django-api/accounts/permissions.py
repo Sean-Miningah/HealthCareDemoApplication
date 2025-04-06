@@ -15,8 +15,6 @@ class IsDoctor(permissions.BasePermission):
         # Primary check should be on the user's role
         is_doctor_role = request.user.is_authenticated and request.user.role == 'DOCTOR'
 
-        print(f"User: {request.user}, Is Doctor Role: {is_doctor_role}")
-
         return is_doctor_role
 
 class IsPatient(permissions.BasePermission):

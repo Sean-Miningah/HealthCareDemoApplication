@@ -57,6 +57,10 @@ class DoctorProfileViewSet(viewsets.ModelViewSet):
             permission_classes = [permissions.IsAuthenticated]
         elif self.action == 'create':
             permission_classes = [IsAdminUser]
+        elif self.action in ['update', 'partial_update']:
+            permission_classes = [IsDoctor| IsAdminUser]
+        elif self.action in ['add_availability', 'add_time_off']:
+            permission_classes = [IsDoctor]
         else:
             permission_classes = [permissions.IsAuthenticated]
         return [permission() for permission in permission_classes]
@@ -71,7 +75,7 @@ class DoctorProfileViewSet(viewsets.ModelViewSet):
 
         # If this is not a list/retrieve action, restrict to own profile
         if self.action not in ['list', 'retrieve'] and not user.is_staff:
-            if hasattr(user, 'doctor'):
+            if hasattr(user, 'doctorprofile'):
                 return queryset.filter(user=user)
             return DoctorProfile.objects.none()
 
@@ -86,8 +90,45 @@ class DoctorProfileViewSet(viewsets.ModelViewSet):
             accepting_new = self.request.query_params.get('accepting_new_patients')
             if accepting_new and accepting_new.lower() == 'true':
                 queryset = queryset.filter(accepting_new_patients=True)
-
+        if self.action in ['update', 'partial_update', 'destroy']:
+            id = self.kwargs.get('id')
+            return self.kwargs.get(id=id)
         return queryset
+
+    def perform_update(self, serializer):
+        """
+        Check permissions before updating.
+        """
+        doctorprofile = self.get_object()
+        user = self.request.user
+
+        print(f"here we are performing a update with {user}")
+        # Only the doctor or admin can update
+        if not user.is_staff and (not hasattr(user, 'doctorprofile') or user.doctorprofile != doctorprofile):
+            self.permission_denied(
+                self.request,
+                message="You do not have permission to modify this availability."
+            )
+
+        serializer.save()
+
+    def perform_partial_update(self, serializer):
+        """
+        Check permission before making partial update.
+        """
+        doctorprofile = self.get_object()
+        user = self.request.user
+
+        print(f"here we are performing a partial update with {user}")
+
+        # Only the doctor or admin can update
+        if not user.is_staff and (not hasattr(user, 'doctorprofile') or user.doctorprofile != doctorprofile):
+            self.permission_denied(
+                self.request,
+                message="You do not have permission to modify this availability."
+            )
+
+        serializer.save()
 
     @action(detail=False, methods=['get'], permission_classes=[IsDoctor])
     def me(self, request):
@@ -117,7 +158,7 @@ class DoctorProfileViewSet(viewsets.ModelViewSet):
 
         # Check if the user has permission to add availability
         user = request.user
-        if not user.is_staff and (not hasattr(user, 'doctor') or user.doctor != doctor):
+        if not user.is_staff and (not hasattr(user, 'doctorprofile') or user.doctorprofile != doctor):
             return Response(
                 {'detail': 'You do not have permission to modify this doctor\'s availability.'},
                 status=status.HTTP_403_FORBIDDEN
@@ -143,7 +184,7 @@ class DoctorProfileViewSet(viewsets.ModelViewSet):
         doctor = self.get_object()
 
         # Only show future time offs for regular users
-        if not request.user.is_staff and (not hasattr(request.user, 'doctor') or request.user.doctor != doctor):
+        if not request.user.is_staff and (not hasattr(request.user, 'doctorprofile') or request.user.doctorpofile != doctor):
             time_offs = doctor.time_offs.filter(start_datetime__gte=timezone.now())
         else:
             time_offs = doctor.time_offs.all()
@@ -160,7 +201,7 @@ class DoctorProfileViewSet(viewsets.ModelViewSet):
 
         # Check if the user has permission to add time off
         user = request.user
-        if not user.is_staff and (not hasattr(user, 'doctor') or user.doctor != doctor):
+        if not user.is_staff and (not hasattr(user, 'doctorprofile') or user.doctorprofile != doctor):
             return Response(
                 {'detail': 'You do not have permission to modify this doctor\'s schedule.'},
                 status=status.HTTP_403_FORBIDDEN
@@ -307,8 +348,8 @@ class DoctorAvailabilityViewSet(viewsets.ModelViewSet):
             return DoctorAvailability.objects.all()
 
         # If doctor, can only see own availabilities
-        if hasattr(user, 'doctor'):
-            return DoctorAvailability.objects.filter(doctor=user.doctor)
+        if hasattr(user, 'doctorprofile'):
+            return DoctorAvailability.objects.filter(doctor=user.doctorprofile)
 
         # For other users (patients), filter by requested doctor
         doctor_id = self.request.query_params.get('doctor')
@@ -318,6 +359,7 @@ class DoctorAvailabilityViewSet(viewsets.ModelViewSet):
         # Default: no access
         return DoctorAvailability.objects.none()
 
+
     def perform_update(self, serializer):
         """
         Check permissions before updating.
@@ -326,7 +368,7 @@ class DoctorAvailabilityViewSet(viewsets.ModelViewSet):
         user = self.request.user
 
         # Only the doctor or admin can update
-        if not user.is_staff and (not hasattr(user, 'doctor') or user.doctor != availability.doctor):
+        if not user.is_staff and (not hasattr(user, 'doctorprofile') or user.doctorprofile != availability.doctor):
             self.permission_denied(
                 self.request,
                 message="You do not have permission to modify this availability."
@@ -380,8 +422,8 @@ class DoctorTimeOffViewSet(viewsets.ModelViewSet):
             return DoctorTimeOff.objects.all()
 
         # If doctor, can only see own time offs
-        if hasattr(user, 'doctor'):
-            return DoctorTimeOff.objects.filter(doctor=user.doctor)
+        if hasattr(user, 'doctorprofile'):
+            return DoctorTimeOff.objects.filter(doctor=user.doctorprofile)
 
         # For other users (patients), filter by requested doctor and only future
         doctor_id = self.request.query_params.get('doctor')
@@ -402,7 +444,7 @@ class DoctorTimeOffViewSet(viewsets.ModelViewSet):
         user = self.request.user
 
         # Only the doctor or admin can update
-        if not user.is_staff and (not hasattr(user, 'doctor') or user.doctor != time_off.doctor):
+        if not user.is_staff and (not hasattr(user, 'doctorprofile') or user.doctorprofile != time_off.doctor):
             self.permission_denied(
                 self.request,
                 message="You do not have permission to modify this time off."
@@ -417,7 +459,7 @@ class DoctorTimeOffViewSet(viewsets.ModelViewSet):
         user = self.request.user
 
         # Only the doctor or admin can delete
-        if not user.is_staff and (not hasattr(user, 'doctor') or user.doctor != instance.doctor):
+        if not user.is_staff and (not hasattr(user, 'doctorprofile') or user.doctorprofile != instance.doctor):
             self.permission_denied(
                 self.request,
                 message="You do not have permission to delete this time off."
