@@ -57,8 +57,8 @@ class DoctorProfileViewSet(viewsets.ModelViewSet):
             permission_classes = [permissions.IsAuthenticated]
         elif self.action == 'create':
             permission_classes = [IsAdminUser]
-        elif self.action in ['update', 'partial_update']:
-            permission_classes = [IsDoctor| IsAdminUser]
+        elif self.action in ['update', 'partial_update', 'destroy']:
+            permission_classes = [IsDoctor| IsAdminUser ]
         elif self.action in ['add_availability', 'add_time_off']:
             permission_classes = [IsDoctor]
         else:
@@ -90,9 +90,6 @@ class DoctorProfileViewSet(viewsets.ModelViewSet):
             accepting_new = self.request.query_params.get('accepting_new_patients')
             if accepting_new and accepting_new.lower() == 'true':
                 queryset = queryset.filter(accepting_new_patients=True)
-        if self.action in ['update', 'partial_update', 'destroy']:
-            id = self.kwargs.get('id')
-            return self.kwargs.get(id=id)
         return queryset
 
     def perform_update(self, serializer):
@@ -102,7 +99,6 @@ class DoctorProfileViewSet(viewsets.ModelViewSet):
         doctorprofile = self.get_object()
         user = self.request.user
 
-        print(f"here we are performing a update with {user}")
         # Only the doctor or admin can update
         if not user.is_staff and (not hasattr(user, 'doctorprofile') or user.doctorprofile != doctorprofile):
             self.permission_denied(
@@ -129,6 +125,21 @@ class DoctorProfileViewSet(viewsets.ModelViewSet):
             )
 
         serializer.save()
+
+    def perform_destroy(self, instance):
+        """
+        Check permission on instance doctor or admin can delete doctor profile
+        """
+        user = self.request.user
+
+        # Only the doctor or admin can delete
+        if not user.is_staff and (not hasattr(user, 'doctorprofile') or user.doctorprofile.id != instance.id):
+            self.permission_denied(
+                self.request,
+                message="You do not have permission to delete this doctor profile"
+            )
+
+        instance.delete()
 
     @action(detail=False, methods=['get'], permission_classes=[IsDoctor])
     def me(self, request):
@@ -184,7 +195,7 @@ class DoctorProfileViewSet(viewsets.ModelViewSet):
         doctor = self.get_object()
 
         # Only show future time offs for regular users
-        if not request.user.is_staff and (not hasattr(request.user, 'doctorprofile') or request.user.doctorpofile != doctor):
+        if not request.user.is_staff and (not hasattr(request.user, 'doctorprofile') or request.user.doctorprofile != doctor):
             time_offs = doctor.time_offs.filter(start_datetime__gte=timezone.now())
         else:
             time_offs = doctor.time_offs.all()
@@ -251,8 +262,8 @@ class DoctorProfileViewSet(viewsets.ModelViewSet):
             duration_minutes = int(request.query_params.get('duration', 30))
 
             # Get existing appointments for that day
-            start_datetime = datetime.combine(date, datetime.min.time())
-            end_datetime = datetime.combine(date, datetime.max.time())
+            start_datetime = timezone.make_aware(datetime.combine(date, datetime.min.time()))
+            end_datetime = timezone.make_aware(datetime.combine(date, datetime.max.time()))
 
             from appointments.models import Appointment
             existing_appointments = Appointment.objects.filter(

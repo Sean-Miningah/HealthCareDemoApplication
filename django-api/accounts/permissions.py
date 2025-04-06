@@ -17,6 +17,7 @@ class IsDoctor(permissions.BasePermission):
 
         return is_doctor_role
 
+
 class IsPatient(permissions.BasePermission):
     """
     Permission to only allow users with patient role.
