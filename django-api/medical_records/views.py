@@ -7,7 +7,7 @@ from medical_records.models import MedicalRecord, MedicalImage, MedicalRecordAcc
 from medical_records.serializers import (
     MedicalRecordSerializer, MedicalImageSerializer,
     MedicalRecordAccessSerializer, MedicalRecordCreateSerializer,
-    MedicalRecordUpdateSerializer, MedicalImageCreateSerializer
+    MedicalRecordUpdateSerializer, MedicalImageCreateSerializer, MedicalImageUpdateSerializer
 )
 from accounts.permissions import IsAdminUser, IsDoctor, IsPatient
 
@@ -34,7 +34,7 @@ class MedicalRecordViewSet(viewsets.ModelViewSet):
         - Patients can only view their own records
         """
         if self.action == 'create':
-            permission_classes = [permissions.IsAuthenticated]
+            permission_classes = [IsDoctor | IsAdminUser]
         else:
             permission_classes = [permissions.IsAuthenticated]
         return [permission() for permission in permission_classes]
@@ -53,14 +53,14 @@ class MedicalRecordViewSet(viewsets.ModelViewSet):
         if user.is_staff:
             pass
         # Doctors can see records for their patients or records they created
-        elif hasattr(user, 'doctor'):
+        elif hasattr(user, 'doctorprofile'):
             queryset = queryset.filter(
-                Q(doctor=user.doctor) |
-                Q(patient__appointments__doctor=user.doctor)
+                Q(doctor=user.doctorprofile) |
+                Q(patient__appointments__doctor=user.doctorprofile)
             ).distinct()
         # Patients can only see their own records
-        elif hasattr(user, 'patient'):
-            queryset = queryset.filter(patient=user.patient)
+        elif hasattr(user, 'patientprofile'):
+            queryset = queryset.filter(patient=user.patientprofile)
 
             # Filter out confidential records that need doctor explanation
             confidential_filter = self.request.query_params.get('include_confidential')
@@ -101,15 +101,15 @@ class MedicalRecordViewSet(viewsets.ModelViewSet):
         user = self.request.user
 
         # Only doctors and admins can create medical records
-        if not user.is_staff and not hasattr(user, 'doctor'):
+        if not user.is_staff and not hasattr(user, 'doctorprofile'):
             self.permission_denied(
                 self.request,
                 message="Only doctors and administrators can create medical records."
             )
 
         # If user is a doctor, set the doctor field to the user's doctor profile
-        if hasattr(user, 'doctor') and 'doctor' not in serializer.validated_data:
-            serializer.validated_data['doctor'] = user.doctor
+        if hasattr(user, 'doctorprofile') and 'doctor' not in serializer.validated_data:
+            serializer.validated_data['doctor'] = user.doctorprofile
 
         # Create the record and log the access
         record = serializer.save()
@@ -125,7 +125,7 @@ class MedicalRecordViewSet(viewsets.ModelViewSet):
         user = self.request.user
 
         # Only the doctor who created the record or admin can update
-        if not user.is_staff and not (hasattr(user, 'doctor') and record.doctor == user.doctor):
+        if not user.is_staff and not (hasattr(user, 'doctorprofile') and record.doctor == user.doctorprofile):
             self.permission_denied(
                 self.request,
                 message="You do not have permission to update this medical record."
@@ -161,14 +161,14 @@ class MedicalRecordViewSet(viewsets.ModelViewSet):
         """
         user = request.user
 
-        if not hasattr(user, 'patient'):
+        if not hasattr(user, 'patientprofile'):
             return Response(
                 {'detail': 'You must be a patient to access this endpoint.'},
                 status=status.HTTP_403_FORBIDDEN
             )
 
         # Apply filters
-        queryset = MedicalRecord.objects.filter(patient=user.patient)
+        queryset = MedicalRecord.objects.filter(patient=user.patientprofile)
 
         # Filter out confidential records that need doctor explanation
         include_confidential = request.query_params.get('include_confidential')
@@ -209,8 +209,8 @@ class MedicalRecordViewSet(viewsets.ModelViewSet):
 
         # Only the doctor who created the record, the patient, or admin can view logs
         if not user.is_staff and not (
-            (hasattr(user, 'doctor') and record.doctor == user.doctor) or
-            (hasattr(user, 'patient') and record.patient == user.patient)
+            (hasattr(user, 'doctorprofile') and record.doctor == user.doctorprofile) or
+            (hasattr(user, 'patientprofile') and record.patient == user.patientprofile)
         ):
             return Response(
                 {'detail': 'You do not have permission to view access logs for this record.'},
@@ -230,7 +230,7 @@ class MedicalRecordViewSet(viewsets.ModelViewSet):
         user = request.user
 
         # Only the doctor who created the record or admin can add images
-        if not user.is_staff and not (hasattr(user, 'doctor') and record.doctor == user.doctor):
+        if not user.is_staff and not (hasattr(user, 'doctorprofile') and record.doctor == user.doctorprofile):
             return Response(
                 {'detail': 'You do not have permission to add images to this record.'},
                 status=status.HTTP_403_FORBIDDEN
@@ -254,7 +254,11 @@ class MedicalImageViewSet(viewsets.ModelViewSet):
     API endpoint for managing medical images.
     """
     queryset = MedicalImage.objects.all()
-    serializer_class = MedicalImageSerializer
+
+    def get_serializer_class(self):
+        if self.action in ['update', 'partial_update']:
+            return MedicalImageUpdateSerializer
+        return MedicalImageSerializer
 
     def get_permissions(self):
         """
@@ -275,17 +279,17 @@ class MedicalImageViewSet(viewsets.ModelViewSet):
             return MedicalImage.objects.all()
 
         # Doctors can see images for their patients or for records they created
-        elif hasattr(user, 'doctor'):
+        elif hasattr(user, 'doctorprofile'):
             return MedicalImage.objects.filter(
-                Q(medical_record__doctor=user.doctor) |
-                Q(medical_record__patient__appointments__doctor=user.doctor)
+                Q(medical_record__doctor=user.doctorprofile) |
+                Q(medical_record__patient__appointments__doctor=user.doctorprofile)
             ).distinct()
 
         # Patients can only see their own images
-        elif hasattr(user, 'patient'):
+        elif hasattr(user, 'patientprofile'):
             # Don't show images from confidential records
             return MedicalImage.objects.filter(
-                medical_record__patient=user.patient,
+                medical_record__patient=user.patientprofile,
                 medical_record__is_confidential=False
             )
 
@@ -322,7 +326,7 @@ class MedicalImageViewSet(viewsets.ModelViewSet):
         user = self.request.user
 
         # Only the doctor who created the record or admin can add images
-        if not user.is_staff and not (hasattr(user, 'doctor') and medical_record.doctor == user.doctor):
+        if not user.is_staff and not (hasattr(user, 'doctorprofile') and medical_record.doctor == user.doctorprofile):
             self.permission_denied(
                 self.request,
                 message="You do not have permission to add images to this record."
@@ -348,7 +352,7 @@ class MedicalImageViewSet(viewsets.ModelViewSet):
         user = self.request.user
 
         # Only the doctor who created the record or admin can update images
-        if not user.is_staff and not (hasattr(user, 'doctor') and image.medical_record.doctor == user.doctor):
+        if not user.is_staff and not (hasattr(user, 'doctorprofile') and image.medical_record.doctor == user.doctorprofile):
             self.permission_denied(
                 self.request,
                 message="You do not have permission to update this image."
@@ -373,7 +377,7 @@ class MedicalImageViewSet(viewsets.ModelViewSet):
         user = self.request.user
 
         # Only the doctor who created the record or admin can delete images
-        if not user.is_staff and not (hasattr(user, 'doctor') and instance.medical_record.doctor == user.doctor):
+        if not user.is_staff and not (hasattr(user, 'doctorprofile') and instance.medical_record.doctor == user.doctorprofile):
             self.permission_denied(
                 self.request,
                 message="You do not have permission to delete this image."
@@ -420,15 +424,15 @@ class MedicalRecordAccessViewSet(viewsets.ReadOnlyModelViewSet):
             return MedicalRecordAccess.objects.all()
 
         # Doctors can see logs for records they created
-        elif hasattr(user, 'doctor'):
+        elif hasattr(user, 'doctorprofile'):
             return MedicalRecordAccess.objects.filter(
-                medical_record__doctor=user.doctor
+                medical_record__doctor=user.doctorprofile
             )
 
         # Patients can see logs for their own records
-        elif hasattr(user, 'patient'):
+        elif hasattr(user, 'patientprofile'):
             return MedicalRecordAccess.objects.filter(
-                medical_record__patient=user.patient
+                medical_record__patient=user.patientprofile
             )
 
         # Other users can't see any logs

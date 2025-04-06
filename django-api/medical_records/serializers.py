@@ -11,7 +11,7 @@ class MedicalImageSerializer(serializers.ModelSerializer):
     """
     class Meta:
         model = MedicalImage
-        fields = ['id', 'title', 'description', 'image_file', 'image_type', 'created_at']
+        fields = ['id', 'title', 'description', 'image_file', 'image_type', 'created_at', 'medical_record']
         read_only_fields = ['id', 'created_at']
 
 
@@ -29,6 +29,17 @@ class MedicalRecordAccessSerializer(serializers.ModelSerializer):
 
     def get_user_name(self, obj):
         return f"{obj.user.first_name} {obj.user.last_name}".strip()
+
+class MedicalImageUpdateSerializer(serializers.ModelSerializer):
+    """
+    Serializer for updateing MedicalImage model.
+    """
+    image_file = serializers.FileField(required=False)
+    class Meta:
+        model = MedicalImage
+        fields = ['id', 'title', 'description', 'image_file', 'image_type', 'created_at', 'medical_record']
+        read_only_fields = ['id', 'created_at', 'medical_record']
+
 
 
 class MedicalRecordSerializer(serializers.ModelSerializer):
