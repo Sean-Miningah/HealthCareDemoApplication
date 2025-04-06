@@ -68,7 +68,7 @@ class PatientProfileViewSet(viewsets.ModelViewSet):
             return PatientProfile.objects.all()
 
         # If the user is a patient, they can only see their own profile
-        if hasattr(user, 'patient'):
+        if hasattr(user, 'patientprofile'):
             return PatientProfile.objects.filter(user=user)
 
         # Other users (like doctors) can't see patient profiles
@@ -92,7 +92,7 @@ class PatientProfileViewSet(viewsets.ModelViewSet):
 
         # Check if the user has permission to view this patient's insurance
         user = request.user
-        if not user.is_staff and (not hasattr(user, 'patient') or user.patient != patient):
+        if not user.is_staff and (not hasattr(user, 'patientprofile') or user.patientprofile != patient):
             return Response(
                 {'detail': 'You do not have permission to view this information.'},
                 status=status.HTTP_403_FORBIDDEN
@@ -111,7 +111,7 @@ class PatientProfileViewSet(viewsets.ModelViewSet):
 
         # Check if the user has permission to add insurance to this patient
         user = request.user
-        if not user.is_staff and (not hasattr(user, 'patient') or user.patient != patient):
+        if not user.is_staff and (not hasattr(user, 'patientprofile') or user.patientprofile != patient):
             return Response(
                 {'detail': 'You do not have permission to add insurance to this patient.'},
                 status=status.HTTP_403_FORBIDDEN
@@ -162,8 +162,8 @@ class PatientInsuranceViewSet(viewsets.ModelViewSet):
             return PatientInsurance.objects.all()
 
         # If the user is a patient, they can only see their own insurance
-        if hasattr(user, 'patient'):
-            return PatientInsurance.objects.filter(patient=user.patient)
+        if hasattr(user, 'patientprofile'):
+            return PatientInsurance.objects.filter(patient=user.patientprofile)
 
         # Other users can't see insurance records
         return PatientInsurance.objects.none()
