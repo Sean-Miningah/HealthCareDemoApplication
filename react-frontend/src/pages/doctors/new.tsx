@@ -10,6 +10,7 @@ const NewDoctorPage = () => {
   const navigate = useNavigate();
 
   const handleSubmit = (formData: unknown) => {
+    console.log("The form data submitted is", formData)
     setIsLoading(true);
 
     try {
